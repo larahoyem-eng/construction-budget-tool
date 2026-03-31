@@ -155,6 +155,14 @@ input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 
 .tc-val{font-family:var(--HF);font-size:22px;font-weight:700}
 .tc-local .tc-val{color:var(--blue)}.tc-usd .tc-val{color:var(--orange)}
 .tc-rt{font-size:10px;opacity:.7}
+.fsel{font-family:var(--HF);font-size:9px;font-weight:700;padding:3px 6px;border-radius:10px;border:1.5px solid transparent;cursor:pointer;letter-spacing:.3px;width:auto;background:var(--blue-lt);color:var(--blue)}
+.fsel.fc{border-color:var(--orange);background:var(--orange-lt);color:#7a3000}
+.fsel option{font-family:var(--BF);font-size:12px;font-weight:400}
+.fsel-STW{background:var(--blue-lt);color:var(--blue)}
+.fsel-Municipal,.fsel-FECE{background:var(--green-lt);color:var(--ok)}
+.fsel-Community{background:var(--orange-lt);color:#7a3000}
+.fsel-Mixed{background:var(--yellow-lt);color:var(--warn)}
+.fsel.fc{background:var(--yellow-lt)!important;color:var(--warn)!important;border-color:var(--orange)}
 @media print{.hdr,.steps,.nav,.np{display:none!important}.main{padding:0;max-width:100%}.card{box-shadow:none;border:1px solid #ccc}body{background:#fff}.stbl th,.stbl .grand td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style>
 </head>
@@ -489,7 +497,7 @@ function buildS2(){
         var li=proj.lineItems.find(function(l){return l.catKey===catKey&&l.idx===idx;});
         if(!li)return;if(li.uc===0)hasZero=true;
         var tr=document.createElement("tr");
-        tr.innerHTML="<td>"+item.n+"</td><td style=\"text-align:right\"><input class=\"qi\" type=\"number\" min=\"0\" step=\"0.5\" value=\""+li.qty+"\" onchange=\"updLi("+pi+","+JSON.stringify(catKey)+","+idx+",this.value)\"></td><td style=\"color:var(--muted);font-size:11px\">"+item.u+"</td><td style=\"text-align:right;color:var(--muted);font-size:11px\">"+cd.sym+fmt(item.uc)+"</td><td style=\"text-align:right;font-weight:600\" id=\"lt-"+pi+"-"+catKey+"-"+idx+"\">"+cd.sym+fmt(li.qty*li.uc)+"</td><td><span class=\"fp fp-"+li.f+"\">"+fLbl(li.f,cd.muniLabel)+"</span></td>";
+        tr.innerHTML="<td>"+item.n+"</td><td style=\"text-align:right\"><input class=\"qi\" type=\"number\" min=\"0\" step=\"0.5\" value=\""+li.qty+"\" onchange=\"updLi("+pi+","+JSON.stringify(catKey)+","+idx+",this.value)\"></td><td style=\"color:var(--muted);font-size:11px\">"+item.u+"</td><td style=\"text-align:right;color:var(--muted);font-size:11px\">"+cd.sym+fmt(item.uc)+"</td><td style=\"text-align:right;font-weight:600\" id=\"lt-"+pi+"-"+catKey+"-"+idx+"\">"+cd.sym+fmt(li.qty*li.uc)+"</td><td>"+mkFsel(pi,catKey,idx,li.f,li.f,cd)+"</td>";
         tbody.appendChild(tr);
       });
     });
@@ -506,6 +514,34 @@ function updLi(pi,catKey,idx,val){
   var el=document.getElementById("lt-"+pi+"-"+catKey+"-"+idx);if(el)el.textContent=PD[S.country].sym+fmt(li.qty*li.uc);
   var catTot=0;S.projects.forEach(function(p){p.lineItems.filter(function(l){return l.catKey===catKey;}).forEach(function(l){catTot+=l.qty*l.uc;});});
   var te=document.getElementById("at-"+catKey);if(te)te.textContent=PD[S.country].sym+fmt(catTot);
+  updSub();
+}
+
+function mkFsel(pi,catKey,idx,curF,defF,cd){
+  var opts=["STW","Municipal","Community"];
+  if(cd.muniLabel!=="Municipal")opts=["STW",cd.muniLabel,"Community"];
+  var changed=curF!==defF;
+  var cls="fsel fsel-"+(changed?"Mixed":curF)+(changed?" fc":"");
+  var id="fs-"+pi+"-"+catKey+"-"+idx;
+  var sel="<select class=\""+cls+"\" id=\""+id+"\" onchange=\"updF("+pi+","+JSON.stringify(catKey)+","+idx+",this)\" title=\""+T("Default:","Predeterminado:")+' '+defF+"\">";
+  opts.forEach(function(o){sel+="<option value=\""+o+"\""+( o===curF?" selected":"")+">"+fLbl(o,cd.muniLabel)+"</option>";});
+  sel+="</select>";
+  return sel;
+}
+
+function updF(pi,catKey,idx,sel){
+  var li=S.projects[pi].lineItems.find(function(l){return l.catKey===catKey&&l.idx===idx;});
+  if(!li)return;
+  li.f=sel.value;
+  // Restyle the select to reflect new funder and flag if changed from default
+  var defF=PD[S.country].projects[S.projects[pi].key];
+  var cats=defF.variants?defF.variants[S.projects[pi].level].cats:defF.cats;
+  var defItem=cats[catKey]?cats[catKey].items[idx]:null;
+  var defaultF=defItem?defItem.f:li.f;
+  var changed=li.f!==defaultF;
+  sel.className="fsel fsel-"+(changed?"Mixed":li.f)+(changed?" fc":"");
+  sel.title=T("Default:","Predeterminado:")+" "+defaultF+(changed?" ("+T("changed","modificado")+")":"");
+  // Update the accordion total (funder change doesn't affect $ amount but keep fresh)
   updSub();
 }
 
